@@ -1,11 +1,11 @@
-# Deployment of a Tooplate Webpage using Docker in AWS
+# Containerisation of a Tooplate Webpage using Docker in AWS
 
-This project consists of deploying a webpage from [Tooplate](https://www.tooplate.com/)
-using Docker on an AWS EC2 instance.
+This project consists of containerising a webpage from 
+[Tooplate](https://www.tooplate.com/) using Docker on an AWS EC2 instance.
 
 ## Initial Settings: AWS EC2 Instance
 
-To build and deploy the application, I launched an EC2 instance in AWS with the 
+To build the webpage template, I launched an EC2 instance in AWS with the 
 following specifications:
 
 * Name: `build-tooplateweb-docker`
@@ -48,7 +48,7 @@ I followed the steps to install Docker Engine for Ubuntu, as mentioned in the
 [Docker documentation page](https://docs.docker.com/engine/install/), using the 
 `apt` repository.
 
-## Download Tooplate HTML Template
+## Prepare the Tooplate HTML Template
 
 For this application, I have used Moso Interior template, which can be found in: 
 [https://www.tooplate.com/view/2133-moso-interior](https://www.tooplate.com/view/2133-moso-interior)
@@ -59,11 +59,66 @@ Inside the EC2 instance, I ran the following commands:
 
 * `mkdir moso-interior-webpage` to create a directory for the webpage deployment
 
-* `wget https://www.tooplate.com/zip-templates/2133_moso_interior.zip` to get the `.zip`
-  file from the Tooplate webpage
+* `wget https://www.tooplate.com/zip-templates/2133_moso_interior.zip` to get 
+the `.zip` file from the Tooplate webpage
 
 * `unzip 2133_moso_interior.zip` to unzip the webpage directory
 
-* Tar the content inside the `2133_moso_interior` directory: `tar czvf moso-interior.tar.gz *`
+* Tar the content inside the `2133_moso_interior` directory: 
+`tar czvf moso-interior.tar.gz *`
 
-* Move the file one level up: `mv moso-interior.tar.gz ../` and remove both the `2133_moso_interior` `.zip` file and unzipped directory
+* Move the file to the deployment directory: 
+`mv moso-interior.tar.gz ../moso-interior-webpage` and remove both the
+ `2133_moso_interior` `.zip` file and unzipped directory
+
+## Prepare the `Dockerfile`
+
+I prepared a `Dockerfile` using `vim Dockerfile` inside the `moso-interior-webpage/`
+directory.
+
+The `Dockerfile` contains the instructions to containerise the webpage:
+
+```
+FROM ubuntu:latest
+
+LABEL "Author"="scaceresg"
+LABEL "Project"="moso-interior"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /var/www/html
+
+RUN apt update && apt install apache2 git -y
+
+CMD ["/usr/sbin/apache2ctl", "-D", "FOREGROUND"]
+
+ADD moso-interior.tar.gz /var/www/html
+
+EXPOSE 80
+
+VOLUME /var/log/apache2
+```
+
+## Build the Docker Image
+
+The final step is to build the image and run the container using the `Dockerfile`:
+
+* Build the image: `docker build -t moso-webpage-img:v1`
+
+* Check the image using `docker images`:
+
+```
+REPOSITORY         TAG       IMAGE ID       CREATED          SIZE
+moso-webpage-img   v1        9b38480e626c   11 seconds ago   259MB
+```
+
+* Run the container: `docker run -d --name moso-webpage -p 8080:80 moso-webpage-img:v1`
+
+* Check the container using `docker ps`
+
+```
+CONTAINER ID   IMAGE                 COMMAND                  CREATED          STATUS          PORTS                                   NAMES
+639c5bd17df6   moso-webpage-img:v1   "/usr/sbin/apache2ct…"   17 seconds ago   Up 17 seconds   0.0.0.0:8080->80/tcp, :::8080->80/tcp   moso-webpage
+```
+
+* The webpage is shown in the EC2 instance public IPv4: e.g., `54.162.21.102:8080`
